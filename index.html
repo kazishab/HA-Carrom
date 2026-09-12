@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HA Carrom</title>
+<meta name="description" content="HA Carrom - Play Carrom Online, vs Computer, or Pass & Play">
+<link rel="icon" href="assets/icons/favicon.png">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HA Carrom">
+<link rel="stylesheet" href="css/style.css">
+
+<!-- Google AdSense (replace ca-pub-XXXXXXXXXXXXXXXX with your own AdSense publisher id) -->
+<!-- Google AdSense — TEMPORARILY DISABLED. Re-enable once ad units have real
+     slot IDs (see the 3 data-ad-slot="00000000XX" placeholders below) and the
+     site is approved by AdSense. Left disabled for now while chasing a
+     reported mobile touch/tap issue, to rule out ad-script interference.
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7392235471119925" crossorigin="anonymous"></script>
+-->
+
+
+<!-- Firebase (compat SDK, easiest for plain JS) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+
+<!-- ===================== SPLASH SCREEN ===================== -->
+<div id="splash-screen">
+  <div class="splash-content">
+    <img src="assets/icons/logo.png" alt="HA Carrom" class="splash-logo" id="splash-logo">
+    <div class="splash-title">HA <span class="accent">CARROM</span></div>
+    <div class="splash-loader"><div class="splash-loader-bar"></div></div>
+    <div class="splash-build">build by <strong>HA TECH BD</strong></div>
+  </div>
+</div>
+
+<!-- ===================== MAIN MENU ===================== -->
+<div id="main-menu" class="screen hidden">
+  <div class="top-ad" id="ad-slot-menu">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-7392235471119925"
+         data-ad-slot="0000000000"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+  </div>
+
+  <div class="menu-card">
+    <img src="assets/icons/logo.png" alt="HA Carrom" class="menu-logo">
+    <h1>HA <span class="accent">CARROM</span></h1>
+
+    <button class="menu-btn" data-mode="computer">
+      <img src="assets/icons/icon-computer.png" class="btn-icon" alt="">
+      vs Computer
+    </button>
+    <button class="menu-btn" data-mode="passplay">
+      <img src="assets/icons/icon-passplay.png" class="btn-icon" alt="">
+      Pass &amp; Play
+    </button>
+    <button class="menu-btn" data-mode="online">
+      <img src="assets/icons/icon-online.png" class="btn-icon" alt="">
+      Online Multiplayer
+    </button>
+    <button class="menu-btn menu-btn-secondary" id="btn-settings">
+      <img src="assets/icons/icon-settings.png" class="btn-icon" alt="">
+      Settings
+    </button>
+  </div>
+
+  <div class="bottom-ad" id="ad-slot-menu-bottom">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-7392235471119925"
+         data-ad-slot="0000000001"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+  </div>
+</div>
+
+<!-- ===================== ONLINE: ROOM LOBBY ===================== -->
+<div id="online-lobby" class="screen hidden">
+  <button class="back-btn" data-back="main-menu">&larr;</button>
+  <div class="menu-card">
+    <h2>Online Room</h2>
+    <button class="menu-btn" id="btn-create-room">
+      <img src="assets/icons/icon-create.png" class="btn-icon" alt="">
+      Create Room
+    </button>
+
+    <div class="join-row">
+      <input type="text" id="join-code-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Room Code">
+      <button class="menu-btn" id="btn-join-room">
+        <img src="assets/icons/icon-join.png" class="btn-icon" alt="">
+        Join Room
+      </button>
+    </div>
+
+    <div id="lobby-status" class="lobby-status"></div>
+  </div>
+</div>
+
+<!-- ===================== ONLINE: WAITING ROOM ===================== -->
+<div id="online-waiting" class="screen hidden">
+  <button class="back-btn" data-back="online-lobby" id="leave-room-btn">&larr;</button>
+  <div class="menu-card">
+    <h2>Room Code</h2>
+    <div class="room-code-display" id="room-code-display">------</div>
+    <p class="hint-text">Share this code with your friend</p>
+    <div id="waiting-players"></div>
+    <button class="menu-btn hidden" id="btn-start-online-game">Start Game</button>
+  </div>
+</div>
+
+<!-- ===================== GAME SCREEN ===================== -->
+<div id="game-screen" class="screen hidden">
+  <div class="game-topbar">
+    <button class="back-btn small" id="btn-quit-game">&larr;</button>
+    <div class="turn-indicator" id="turn-indicator">Your Turn</div>
+    <div class="score-box" id="score-box">
+      <span id="score-a">W: 0</span> | <span id="score-b">B: 0</span>
+    </div>
+    <button class="chat-toggle-btn hidden" id="btn-toggle-chat">
+      <img src="assets/icons/icon-chat.png" class="btn-icon" alt="">
+    </button>
+  </div>
+
+  <div class="board-wrap">
+    <canvas id="carrom-canvas" width="800" height="800"></canvas>
+    <div class="power-slider-wrap" id="power-slider-wrap">
+      <input type="range" id="power-slider" min="10" max="100" value="60">
+      <label>Power</label>
+    </div>
+  </div>
+
+  <div class="game-bottom-ad" id="ad-slot-game">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-7392235471119925"
+         data-ad-slot="0000000002"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+  </div>
+</div>
+
+<!-- ===================== LIVE CHAT PANEL (online mode) ===================== -->
+<div id="chat-panel" class="hidden">
+  <div class="chat-header">
+    <span>Room Chat</span>
+    <button id="chat-close-btn">&times;</button>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <form id="chat-form">
+    <input type="text" id="chat-input" maxlength="200" placeholder="Type a message...">
+    <button type="submit">
+      <img src="assets/icons/icon-send.png" class="btn-icon" alt="">
+    </button>
+  </form>
+</div>
+
+<!-- ===================== GAME OVER MODAL ===================== -->
+<div id="gameover-modal" class="modal hidden">
+  <div class="modal-box">
+    <h2 id="gameover-title">Game Over</h2>
+    <p id="gameover-text"></p>
+    <button class="menu-btn" id="btn-play-again">Play Again</button>
+    <button class="menu-btn menu-btn-secondary" id="btn-back-menu">Main Menu</button>
+  </div>
+</div>
+
+<!-- ===================== SETTINGS MODAL ===================== -->
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-box">
+    <h2>Settings</h2>
+    <div class="settings-row">
+      <span>Sound Effects</span>
+      <label class="switch">
+        <input type="checkbox" id="toggle-sound">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+    <div class="settings-row" id="vibration-row">
+      <span>Vibration<br><small id="vibration-note" class="settings-note hidden">Not supported on this device</small></span>
+      <label class="switch">
+        <input type="checkbox" id="toggle-vibration">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+    <button class="menu-btn menu-btn-secondary" id="btn-close-settings">Close</button>
+  </div>
+</div>
+
+<script src="js/firebase-config.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/board.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/online.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
